@@ -3,14 +3,14 @@
 """Tests for et_config package."""
 
 import logging
-import os
+import os,sys
 import shutil
 from pathlib import Path
 
 import pytest
 
-from et_config import Config
-
+sys.path.insert(0, '.')
+from et_config import Config, get_param
 
 __test_workspace__ = (Path(__file__) / '../../test_workspace').resolve()
 
@@ -54,6 +54,51 @@ def test_Config_ctor():
     cfg_copy.save(__test_workspace__ / 'address/.cfg', mkdir=True)
 
 
+def test_micc2_cfg():
+    """"""
+    clear_test_workspace()
+    # first time setup
+
+    initial_preferences = {
+        "full_name": {
+            "default": "Bert Tijskens",
+            "text": "your full name"
+        },
+        "email": {
+            "text": "your e-mail address"
+        },
+        # "github_username": {
+        #     "default": "etijskens",
+        #     "text": "your github username (leave empty if you do not have one,\n  or create one at https://github.com/join)"
+        # },
+        # "version": {
+        #     "default": "0.0.0",
+        #     "text": "the initial version number of a new project"
+        # },
+        # "github_repo": {
+        #     "default": "{{ cookiecutter.project_name }}",
+        #     "text": "github repo for this project"
+        # },
+        # "default_branch": {
+        #     "default": "master",
+        #     "text": "default git branch"
+        # },
+        # "python_version": {
+        #     "default": "3.7",
+        #     "text": "default minimal Python version"
+        # },
+        # "sphinx_html_theme": {
+        #     "default": "sphinx_rtd_theme",
+        #     "text": "Html theme for sphinx documentation"
+        # },
+        "software_license": {
+            "choices": ['MIT license', 'BSD license', 'ISC license', 'Apache Software License 2.0', 'GNU General Public License v3', 'Not open source'],
+            "text": "default software license"
+        }
+    }
+    for name,v in initial_preferences.items():
+        value = get_param(name, v)
+        print(value)
 
 # ==============================================================================
 # The code below is for debugging a particular test in eclipse/pydev.
@@ -62,7 +107,7 @@ def test_Config_ctor():
 # that the source directory is on the path
 # ==============================================================================
 if __name__ == "__main__":
-    the_test_you_want_to_debug = test_Config_ctor
+    the_test_you_want_to_debug = test_micc2_cfg
 
     print("__main__ running", the_test_you_want_to_debug)
     the_test_you_want_to_debug()

@@ -9,6 +9,7 @@ __version__ = "0.0.0"
 
 from pathlib import Path
 import json
+import click
 
 class Config:
     """Class for configuration (or preferences) files.
@@ -22,36 +23,52 @@ class Config:
         """"""
         self.data = {}
 
-        if not kwargs:
-            self.load(p_cfg=None)
-        else:
-            if Config.file_key in kwargs:
-                # Read Config object data
-                p_cfg = Path(kwargs[Config.file_key])
-                self.load(p_cfg)
+        if Config.file_key in kwargs:
+            # Read Config object data
+            p_cfg = Path(kwargs[Config.file_key])
+            self.load(p_cfg)
 
-            # Add the other kwargs
-            kwargs.pop(Config.file_key,None)
-            self.add(**kwargs)
+        # Add the other kwargs
+        kwargs.pop(Config.file_key,None)
+        self.add(**kwargs)
 
-    def load(self, p_cfg=None):
+    def load(self, p_cfg):
         """
 
         :param Path p_cfg: path to cfg file
         """
-        if p_cfg is None:
-            # first look into
+        if p_cfg.is_absolute():
+            if p_cfg.exists():
+                self.p_cfg = p_cfg
+            else:
+                raise FileNotFoundError(p_cfg)
+        else:
+            # first look in the current directory
+            if p_cfg.exists():
+                self.p_cfg = p_cfg.resolve()
 
-        self.p_cfg = p_cfg.resolve()
-        with p_cfg.open() as fp_cfg:
+            # then look in the home directory:
+            elif (Path.home() / p_cfg.name).exists():
+                self.p_cfg = Path.home() / p_cfg.name
+            
+            else:
+                raise FileNotFoundError(p_cfg.name)
+
+        with self.p_cfg.open() as fp_cfg:
             data = json.load(fp_cfg)
             self.data.update(data)
-
-        self.update_location_(p_cfg)
+        self.update_location_(self.p_cfg)
 
 
     def save(self, file='', mkdir=False):
-        """Save self.data to cfg file."""
+        """Save self.data to cfg file. If file is not specified """
+        if file:
+            p_cfg =  Path(file)
+        elif Config.file_key in self.data:
+            p_cfg = Path(self.data[Config.file_key])
+        else:
+            raise RuntimeError("Don't have a file location to save to.")
+
         p_cfg = self.p_cfg if not file else Path(file)
         p_cfg = p_cfg.resolve()
         if not p_cfg.parent.exists():
@@ -90,5 +107,70 @@ class Config:
 
     def __setitem__(self, key, value):
         self.data[key] = value
+
+    
+    def update(self,dict):
+        self.data.update(dict)
+
+def get_answer():
+    """Get answer str, raise KeyboardInterrupt if answer contains `^^`."""
+    click.secho('Enter `^^` to exit.', fg='white')
+    answer = input('>: ')
+    if '^^' in answer:
+        raise KeyboardInterrupt
+    return answer
+
+
+def get_param(name,description):
+    """"""
+    if 'default' in description:
+        default = description["default"]
+        click.echo(f'\nEnter {description["text"]}. Default = [{click.style(default,fg="green")}]')
+        answer = get_answer()
+        if not answer:
+            answer = default
+
+    elif 'choices' in description:
+        choices = description["choices"]
+        click.echo(f'\nEnter {description["text"]} [{click.style(choices[0],fg="blue")}]\nChoose between:')
+        for i,choice in enumerate(choices):
+            if i ==0 :
+                click.echo(f'  {i}: {click.style(choice, fg="green")} (default)')
+            else:
+                click.echo(f'  {i}: {click.style(choice, fg="blue")}')
+
+        while 1:
+            answer = get_answer()
+            if not answer:
+                answer = choices[0]
+                break
+            try:
+                i = int(answer)
+                answer = choices[i]
+                break
+            except ValueError:
+                result = []
+                for choice in choices:
+                    if choice.startswith(answer):
+                        result.append(choice)
+                if len(result) == 1:
+                    answer = result[0]
+                    break
+                    
+        print(f'>: {answer}')
+
+    else:
+        click.echo(f'\nEnter {description["text"]}')
+
+        while 1:
+            answer = get_answer()
+            if answer:
+                break
+
+    pp = description.get('postprocess', None)
+    if pp:
+        answer = pp(answer)
+
+    return answer
 
 # eof
